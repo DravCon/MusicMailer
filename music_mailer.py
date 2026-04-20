@@ -43,18 +43,23 @@ SENDER_NAME      = os.getenv("SENDER_NAME", "Music Daily")
 # Step 1: Generate newsletter content via Claude + web search
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """You are a music newsletter curator with deep expertise in music theory,
-streaming services, and high-fidelity audio. Your reader:
+SYSTEM_PROMPT = """You are a music newsletter curator who loves both Western and Indian music.
+Your reader:
 
-- Loves music and actively experiments with composition in Ableton Live
-- Has intermediate music theory knowledge (understands chords, scales, progressions)
-  but wants to understand the *emotional* and *psychological* side of music theory —
-  why things sound happy, sad, tense, resolved, nostalgic, etc.
+- Loves music and actively experiments with music-making in Ableton Live
+- Does NOT have advanced music theory training — keep explanations simple,
+  emotional, and jargon-free. No technical terms without a plain-English
+  explanation right next to them.
+- Has a deep love for Indian film music (Bollywood, classic Hindi cinema)
+  and appreciates knowing things like "this song is based on Raga Bhairavi,
+  which is why it feels so bittersweet" — but does not want deep classical
+  theory on ragas.
+- Also enjoys Western popular music, jazz, and world music
 - Subscribes to Spotify, YouTube Music, and Apple Music
 - Owns hi-fi equipment and cares about lossless/high-resolution audio quality
 
-Keep all explanations accessible, practical, and emotionally grounded.
-Always connect theory to real-world listening and composing experiences."""
+Keep everything accessible, warm, and curiosity-driven. The goal is
+to help the reader feel and understand music, not study it."""
 
 
 def generate_newsletter_content() -> dict:
@@ -63,26 +68,34 @@ def generate_newsletter_content() -> dict:
     today  = datetime.now().strftime("%A, %B %d, %Y")
 
     prompt = f"""Today is {today}. Use web search to research current information, then compile
-a daily music digest with these four sections.
+a daily music digest with these five sections.
 
-━━━ SECTION 1 — MUSIC THEORY SPOTLIGHT ━━━
-Pick one concept that explains *why* music creates a particular emotional feeling.
-Good topics: why minor keys feel sad, how the tritone creates tension, what makes
-a Picardy third surprising, why certain chord progressions feel nostalgic, how
-rhythm and syncopation create energy, the emotional weight of different modes
-(Dorian vs Phrygian), etc. Keep it practical — tie it to a real famous song and
-give one actionable tip for someone composing in Ableton.
+━━━ SECTION 1 — MUSIC SPOTLIGHT ━━━
+Pick one interesting musical idea — it could be from Western music OR Indian
+film music (Bollywood, classic Hindi cinema). Focus on the feeling it creates
+and why. Good angles: why a particular Bollywood song feels so nostalgic, what
+makes a chord progression sound cinematic, how a certain rhythm makes you want
+to move, why a raga is used for a particular emotion in a famous film song.
+Keep it conversational — no jargon. If you mention a raga, just describe what
+it feels like, not its technical structure. Include a specific song example
+(could be Bollywood or Western).
 
-━━━ SECTION 2 — NEW RELEASES & MUSIC NEWS ━━━
+━━━ SECTION 2 — ABLETON TIP OF THE DAY ━━━
+Share one practical, actionable tip for Ableton Live. Focus on hidden features
+or shortcuts most people don't know, workflow tricks that save time, best
+practices for arrangement/mixing/sound design, or creative techniques.
+Keep it hands-on — something the reader can try today.
+
+━━━ SECTION 3 — NEW RELEASES & MUSIC NEWS ━━━
 Search for the most interesting music releases and news from the past 24-48 hours.
-Include 3-4 items.
+Include 3-4 items. Mix Western and Indian/Bollywood where relevant.
 
-━━━ SECTION 3 — SERVICE UPDATES ━━━
+━━━ SECTION 4 — SERVICE UPDATES ━━━
 Search for any recent news, feature launches, or notable updates for:
 Spotify, YouTube Music, Apple Music.
 Include 2-3 items across these services.
 
-━━━ SECTION 4 — HI-FI CORNER ━━━
+━━━ SECTION 5 — HI-FI CORNER ━━━
 Search for the latest in lossless audio streaming, hi-res music releases,
 Dolby Atmos / spatial audio news, or audio hardware relevant to home listeners.
 Include 2-3 items.
@@ -91,12 +104,17 @@ Return ONLY a valid JSON object — no markdown fences, no preamble, no extra te
 Use this exact structure:
 
 {{
-  "theory_spotlight": {{
+  "music_spotlight": {{
     "title": "short catchy title (5-8 words)",
-    "concept_name": "name of the music theory concept",
-    "explanation": "2-3 paragraphs separated by two newlines explaining the concept and why it creates its emotional effect",
-    "song_example": "Artist - Song Title: one sentence on how this concept appears in the song",
-    "try_it": "one practical Ableton tip to experiment with this concept"
+    "mood": "one word or short phrase describing the feeling/emotion",
+    "explanation": "2-3 paragraphs separated by two newlines — conversational, jargon-free",
+    "song_example": "Artist - Song Title: one sentence on why this song is the perfect example",
+    "raga_note": "ONLY include if the example is Indian music — one casual sentence like This song is based on Raga X, which is the raga of... — omit this field entirely for Western examples"
+  }},
+  "ableton_tip": {{
+    "title": "short title for the tip",
+    "tip": "the practical tip or trick, 2-4 sentences",
+    "why_useful": "one sentence on why this saves time or improves your music"
   }},
   "music_news": [
     {{"headline": "...", "summary": "1-2 sentences", "source": "publication name"}}
@@ -212,35 +230,57 @@ def _paragraphs(text: str) -> str:
 
 
 def build_html_email(data: dict) -> str:
-    today   = datetime.now().strftime("%A, %B %d, %Y")
-    theory  = data.get("theory_spotlight", {})
-    news    = data.get("music_news", [])
-    updates = data.get("service_updates", [])
-    hifi    = data.get("hifi_corner", [])
+    today    = datetime.now().strftime("%A, %B %d, %Y")
+    spotlight = data.get("music_spotlight", {})
+    ableton  = data.get("ableton_tip", {})
+    news     = data.get("music_news", [])
+    updates  = data.get("service_updates", [])
+    hifi     = data.get("hifi_corner", [])
 
-    # ── Theory section ──────────────────────────────────────────────────────
-    theory_html = f"""
+    # ── Music Spotlight section ──────────────────────────────────────────────
+    raga_note_html = ""
+    if spotlight.get("raga_note"):
+        raga_note_html = f"""
+      <div style="background:#fff7ed;border-radius:8px;padding:14px 16px;
+                  margin:12px 0;border-left:4px solid #f59e0b;">
+        <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#d97706;
+                  text-transform:uppercase;letter-spacing:0.5px;">🪗 Raga note</p>
+        <p style="margin:0;font-size:14px;color:#1f2937;">{_e(spotlight.get('raga_note', ''))}</p>
+      </div>"""
+
+    spotlight_html = f"""
     <div style="background:linear-gradient(135deg,#eef2ff 0%,#f0f9ff 100%);
                 border-radius:12px;padding:24px 28px;">
       <h3 style="margin:0 0 4px;font-size:22px;font-weight:800;color:#1e1b4b;">
-        {_e(theory.get('title', ''))}
+        {_e(spotlight.get('title', ''))}
       </h3>
       <p style="margin:0 0 18px;font-size:14px;color:#6366f1;font-weight:600;
                 text-transform:uppercase;letter-spacing:0.5px;">
-        {_e(theory.get('concept_name', ''))}
+        {_e(spotlight.get('mood', ''))}
       </p>
-      {_paragraphs(theory.get('explanation', ''))}
+      {_paragraphs(spotlight.get('explanation', ''))}
       <div style="background:#fff;border-radius:8px;padding:14px 16px;
                   margin:16px 0 12px;border-left:4px solid #6366f1;">
         <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#4f46e5;
-                  text-transform:uppercase;letter-spacing:0.5px;">🎵 Hear it in</p>
-        <p style="margin:0;font-size:14px;color:#1f2937;">{_e(theory.get('song_example', ''))}</p>
+                  text-transform:uppercase;letter-spacing:0.5px;">🎵 Listen to</p>
+        <p style="margin:0;font-size:14px;color:#1f2937;">{_e(spotlight.get('song_example', ''))}</p>
       </div>
-      <div style="background:#fff;border-radius:8px;padding:14px 16px;
-                  border-left:4px solid #10b981;">
-        <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#059669;
-                  text-transform:uppercase;letter-spacing:0.5px;">🎛️ Try in Ableton</p>
-        <p style="margin:0;font-size:14px;color:#1f2937;">{_e(theory.get('try_it', ''))}</p>
+      {raga_note_html}
+    </div>"""
+
+    # ── Ableton Tip section ──────────────────────────────────────────────────
+    ableton_html = f"""
+    <div style="background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);
+                border-radius:12px;padding:24px 28px;">
+      <h3 style="margin:0 0 16px;font-size:18px;font-weight:800;color:#14532d;">
+        🎛️ {_e(ableton.get('title', ''))}
+      </h3>
+      {_paragraphs(ableton.get('tip', ''))}
+      <div style="background:#fff;border-radius:8px;padding:12px 16px;
+                  border-left:4px solid #10b981;margin-top:12px;">
+        <p style="margin:0;font-size:13px;color:#065f46;font-style:italic;">
+          {_e(ableton.get('why_useful', ''))}
+        </p>
       </div>
     </div>"""
 
@@ -319,16 +359,28 @@ def build_html_email(data: dict) -> str:
     <!-- ── Body ── -->
     <div style="padding:0 32px 40px;">
 
-      <!-- Theory Spotlight -->
+      <!-- Music Spotlight -->
       <div style="margin-top:32px;">
         <div style="display:flex;align-items:center;margin-bottom:14px;">
           <span style="font-size:20px;margin-right:10px;">🎼</span>
           <h2 style="margin:0;font-size:12px;font-weight:800;color:#6366f1;
                      text-transform:uppercase;letter-spacing:1.2px;">
-            Theory Spotlight
+            Music Spotlight
           </h2>
         </div>
-        {theory_html}
+        {spotlight_html}
+      </div>
+
+      <!-- Ableton Tip of the Day -->
+      <div style="margin-top:32px;">
+        <div style="display:flex;align-items:center;margin-bottom:14px;">
+          <span style="font-size:20px;margin-right:10px;">🎛️</span>
+          <h2 style="margin:0;font-size:12px;font-weight:800;color:#10b981;
+                     text-transform:uppercase;letter-spacing:1.2px;">
+            Ableton Tip of the Day
+          </h2>
+        </div>
+        {ableton_html}
       </div>
 
       <!-- New Releases & Music News -->
