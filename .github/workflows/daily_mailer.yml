@@ -24,11 +24,13 @@ jobs:
 
       - name: Run Music Mailer
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          SMTP_HOST:         ${{ secrets.SMTP_HOST }}
-          SMTP_PORT:         ${{ secrets.SMTP_PORT }}
-          SMTP_USER:         ${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD:     ${{ secrets.SMTP_PASSWORD }}
-          RECIPIENT_EMAIL:   ${{ secrets.RECIPIENT_EMAIL }}
-          SENDER_NAME:       ${{ secrets.SENDER_NAME }}
+          BEDROCK_API_KEY:    ${{ secrets.BEDROCK_API_KEY }}
+          BEDROCK_REGION:     ${{ secrets.BEDROCK_REGION }}
+          BEDROCK_MODEL:      ${{ secrets.BEDROCK_MODEL }}
+          SMTP_HOST:             ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:             ${{ secrets.SMTP_PORT }}
+          SMTP_USER:             ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD:         ${{ secrets.SMTP_PASSWORD }}
+          RECIPIENT_EMAIL:       ${{ secrets.RECIPIENT_EMAIL }}
+          SENDER_NAME:           ${{ secrets.SENDER_NAME }}
         run: python music_mailer.py
